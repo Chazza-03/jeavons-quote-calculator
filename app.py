@@ -409,5 +409,3 @@ Subtotal (ex. VAT): £{quote['subtotal']:.2f}
 if __name__ == "__main__":
     main()
 
-if __name__ == "__main__":
-    main()
