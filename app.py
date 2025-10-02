@@ -3,7 +3,7 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 from quote_calculator import calculate_road_haulage_quote
-import pyperclip
+
 
 # Load environment variables
 load_dotenv()
