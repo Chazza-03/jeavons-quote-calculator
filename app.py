@@ -388,22 +388,23 @@ def display_template_quote_result(quote):
     st.markdown(f"## **Total (inc. VAT): £{quote['total']:.2f}**")
     
     # Optional: Add download button for the quote
-   if st.button("📋 Copy Quote Summary"):
-        quote_text = f"""
-    Collection & delivery: £{quote['base_price']:.2f}
-    Fuel Surcharge (8%): £{quote['fuel_surcharge']:.2f}
-    
-    Additional Surcharges:
-    {chr(10).join([f"- {name}: {amount}" for name, amount in quote['surcharge_details'].items()]) if quote['surcharge_details'] else "None"}
-    
-    Subtotal (ex. VAT): £{quote['subtotal']:.2f}
-    """
-        
-        try:
-            pyperclip.copy(quote_text)
-            st.success("Quote copied to clipboard! ✅")
-        except Exception as e:
-            st.error(f"Failed to copy to clipboard: {e}")
+    st.download_button(
+        label="📥 Download Quote Summary",
+        data=f"""
+
+Collection & delivery: £{quote['base_price']:.2f}
+Fuel Surcharge (8%): £{quote['fuel_surcharge']:.2f}
+
+Additional Surcharges:
+{chr(10).join([f"- {name}: {amount}" for name, amount in quote['surcharge_details'].items()]) if quote['surcharge_details'] else "None"}
+
+Subtotal (ex. VAT): £{quote['subtotal']:.2f}
+
+
+        """,
+        file_name="jeavons_quote.txt",
+        mime="text/plain"
+    )
 
 if __name__ == "__main__":
     main()
