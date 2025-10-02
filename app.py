@@ -73,12 +73,6 @@ SURCHARGES = {
         "price": 20.00,
         "description": "These postcodes will attract the London & Suburb Charge"
     },
-    "demurrage": {
-        "name": "Demurrage after 1 hour",
-        "price": 75.00,
-        "description": "Per hour after first hour",
-        "per_hour": True
-    },
     "cargo_labels": {
         "name": "Cargo Identification Labels",
         "price": 0.30,
@@ -97,7 +91,7 @@ SURCHARGES = {
     }
 }
 
-def calculate_template_quote(base_price, selected_surcharges, cargo_label_quantity=0):
+def calculate_template_quote(base_price, selected_surcharges, cargo_label_quantity=1):
     """Calculate quote based on template inputs"""
     fuel_surcharge_rate = 0.08  # 8%
     vat_rate = 0.20  # 20%
@@ -113,14 +107,10 @@ def calculate_template_quote(base_price, selected_surcharges, cargo_label_quanti
         surcharge_config = SURCHARGES[surcharge_key]
         
         if surcharge_key == "cargo_labels" and surcharge_data["selected"]:
+            # Use the quantity from the main input
             quantity = cargo_label_quantity
             amount = quantity * surcharge_config["price"]
             surcharge_details[surcharge_config["name"]] = f"£{amount:.2f} ({quantity} labels)"
-            other_surcharges += amount
-        elif surcharge_key == "demurrage" and surcharge_data["selected"]:
-            hours = surcharge_data.get("hours", 1)
-            amount = hours * surcharge_config["price"]
-            surcharge_details[surcharge_config["name"]] = f"£{amount:.2f} ({hours} hours)"
             other_surcharges += amount
         elif surcharge_data["selected"]:
             amount = surcharge_config["price"]
@@ -238,13 +228,25 @@ def render_quote_template():
             help="Enter the base price for the service"
         )
         
+        # Quantity input for cargo labels (moved here)
+        cargo_label_quantity = st.number_input(
+            "Quantity of Items*",
+            min_value=1,
+            value=1,
+            help="Number of items for cargo labels calculation"
+        )
+        
         st.markdown("---")
         st.subheader("➕ Additional Surcharges")
         
-        # Surcharges checklist
+        # Surcharges checklist (demurrage removed)
         selected_surcharges = {}
         
         for key, config in SURCHARGES.items():
+            # Skip demurrage surcharge
+            if key == "demurrage":
+                continue
+                
             col_a, col_b = st.columns([3, 2])
             
             with col_a:
@@ -255,28 +257,10 @@ def render_quote_template():
             
             with col_b:
                 if config.get("quantity_based"):
-                    quantity = st.number_input(
-                        "Quantity",
-                        min_value=0,
-                        value=1,
-                        key=f"{key}_qty",
-                        disabled=not selected
-                    )
+                    # For cargo labels, we'll use the quantity from above
+                    st.write(f"£{config['price']:.2f} each")
                     selected_surcharges[key] = {
-                        "selected": selected,
-                        "quantity": quantity
-                    }
-                elif config.get("per_hour"):
-                    hours = st.number_input(
-                        "Hours",
-                        min_value=1,
-                        value=1,
-                        key=f"{key}_hours",
-                        disabled=not selected
-                    )
-                    selected_surcharges[key] = {
-                        "selected": selected,
-                        "hours": hours
+                        "selected": selected
                     }
                 else:
                     st.write(f"£{config['price']:.2f}")
@@ -291,7 +275,6 @@ def render_quote_template():
                 return
             
             # Calculate the quote
-            cargo_label_quantity = selected_surcharges.get("cargo_labels", {}).get("quantity", 0)
             quote_result = calculate_template_quote(base_price, selected_surcharges, cargo_label_quantity)
             st.session_state.template_quote = quote_result
             st.session_state.quote_type = "template"
