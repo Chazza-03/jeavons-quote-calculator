@@ -389,51 +389,67 @@ class RoadHaulageQuoteCalculator:
 
     
     def _find_base_price(self, weight, zone, service):
-        """Find base price from pricing table - always round weight UP to next bracket"""
-        if not self.pricing_data:
-            return 0
-            
-        # Get all weight tiers and sort them
-        weight_tiers = []
-        for row in self.pricing_data:
-            try:
-                weight_tiers.append(float(row['Weight_KG']))
-            except (ValueError, KeyError):
-                continue
-                
-        if not weight_tiers:
-            return 0
-            
-        # Sort the weight tiers
-        weight_tiers.sort()
-        
-        # Find the smallest tier that is >= the actual weight
-        # If weight exceeds all tiers, use the largest tier
-        tier = None
-        for wt in weight_tiers:
-            if wt >= weight:
-                tier = wt
-                break
-        
-        # If weight is larger than all tiers, use the largest available tier
-        if tier is None:
-            tier = max(weight_tiers)
-        
-        #print(f"DEBUG: Weight {weight}kg -> using tier {tier}kg")
-        
-        # Find the price for this tier, zone, and service
-        for row in self.pricing_data:
-            try:
-                if (float(row['Weight_KG']) == tier and 
-                    row['Zone'] == zone and 
-                    row['Service'] == service):
-                    if row['Price_GBP'] == 'P.O.A':
-                        return "P.O.A"
-                    return float(row['Price_GBP'])
-            except (ValueError, KeyError):
-                continue
-        
+    """Find base price from pricing table - with enhanced debugging"""
+    if not self.pricing_data:
+        print(f"DEBUG: No pricing data available!")
         return 0
+        
+    print(f"DEBUG: Looking for price - Weight: {weight}kg, Zone: {zone}, Service: {service}")
+    
+    # Get all weight tiers and sort them
+    weight_tiers = []
+    for row in self.pricing_data:
+        try:
+            weight_tiers.append(float(row['Weight_KG']))
+        except (ValueError, KeyError) as e:
+            print(f"DEBUG: Skipping row due to weight error: {e}, row: {row}")
+            continue
+            
+    if not weight_tiers:
+        print("DEBUG: No valid weight tiers found!")
+        return 0
+        
+    # Sort the weight tiers
+    weight_tiers.sort()
+    print(f"DEBUG: Available weight tiers: {weight_tiers}")
+    
+    # Find the smallest tier that is >= the actual weight
+    tier = None
+    for wt in weight_tiers:
+        if wt >= weight:
+            tier = wt
+            break
+    
+    # If weight is larger than all tiers, use the largest available tier
+    if tier is None:
+        tier = max(weight_tiers)
+    
+    print(f"DEBUG: Weight {weight}kg -> using tier {tier}kg")
+    
+    # Find the price for this tier, zone, and service
+    for row in self.pricing_data:
+        try:
+            row_weight = float(row['Weight_KG'])
+            row_zone = row['Zone'].strip()
+            row_service = row['Service'].strip()
+            
+            if (row_weight == tier and 
+                row_zone == zone and 
+                row_service == service):
+                
+                price_str = row['Price_GBP'].strip()
+                print(f"DEBUG: Found matching row - Price: {price_str}")
+                
+                if price_str == 'P.O.A':
+                    return "P.O.A"
+                return float(price_str)
+                
+        except (ValueError, KeyError) as e:
+            print(f"DEBUG: Error processing row {row}: {e}")
+            continue
+    
+    print(f"DEBUG: No price found for tier {tier}, zone {zone}, service {service}")
+    return 0
     
     def _calculate_surcharges(self, info, base_price, zone, quantity):
         """Calculate all applicable surcharges"""
