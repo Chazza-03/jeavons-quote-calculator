@@ -233,7 +233,7 @@ def render_quote_template():
             "Quantity of Items*",
             min_value=1,
             value=1,
-            help="Number of items for cargo labels calculation"
+            help="Number of items"
         )
         
         st.markdown("---")
