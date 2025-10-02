@@ -387,22 +387,27 @@ def display_template_quote_result(quote):
     st.markdown("---")
     st.markdown(f"## **Total (inc. VAT): £{quote['total']:.2f}**")
     
-    # Optional: Add download button for the quote
-    quote_text = f"""
-    Collection & delivery: £{quote['base_price']:.2f}
-    Fuel Surcharge (8%): £{quote['fuel_surcharge']:.2f}
-    
-    Additional Surcharges:
-    {chr(10).join([f"- {name}: {amount}" for name, amount in quote['surcharge_details'].items()]) if quote['surcharge_details'] else "None"}
-    
-    Subtotal (ex. VAT): £{quote['subtotal']:.2f}
-    """
-    
-    # Copy button using st.code + manual copy
-    st.code(quote_text, language="text")
-    if st.button("📋 Copy Quote Summary"):
-        st.info("Please manually copy the text from above code block 📝")
-        )
+     # Optional: Add download button for the quote
+    st.download_button(
+        label="📥 Download Quote Summary",
+        data=f"""
+
+Collection & delivery: £{quote['base_price']:.2f}
+Fuel Surcharge (8%): £{quote['fuel_surcharge']:.2f}
+
+Additional Surcharges:
+{chr(10).join([f"- {name}: {amount}" for name, amount in quote['surcharge_details'].items()]) if quote['surcharge_details'] else "None"}
+
+Subtotal (ex. VAT): £{quote['subtotal']:.2f}
+
+
+        """,
+        file_name="jeavons_quote.txt",
+        mime="text/plain"
+    )
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()
