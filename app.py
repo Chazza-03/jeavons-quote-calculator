@@ -70,7 +70,7 @@ def main():
         
         email_subject = st.text_input(
             "Email Subject*",
-            value="Quote result",
+            value="Quote result",  # Default value added here
             placeholder="e.g., Urgent quote request for 5 pallets to BHX",
             help="Enter the email subject line"
         )
@@ -82,43 +82,16 @@ def main():
             help="Paste the complete email content"
         )
         
-        # Additional user inputs
-        st.subheader("📋 Additional Options")
-        
-        # Quantity input
-        quantity = st.number_input(
-            "Quantity*",
-            min_value=1,
-            value=1,
-            help="Enter the quantity for base price calculation"
-        )
-        
-        # Airway labels checkbox
-        airway_labels = st.checkbox(
-            "Include Airway Labels (£0.30 per item)",
-            help="Add £0.30 per item for airway labels"
-        )
-        
         # Generate quote button in the left column
         if st.button("🚀 Generate Quote", type="primary", use_container_width=True):
             if not email_subject or not email_body.strip():
                 st.error("Please enter both email subject and body")
                 return
             
-            # Store the additional options in session state
-            st.session_state.user_options = {
-                'quantity': quantity,
-                'airway_labels': airway_labels
-            }
-            
             # Store the result in session state to display in the right column
             with st.spinner("🤖 AI is analyzing the email and calculating your quote..."):
                 try:
-                    st.session_state.quote_result = calculate_road_haulage_quote(
-                        email_subject, 
-                        email_body,
-                        user_options=st.session_state.user_options
-                    )
+                    st.session_state.quote_result = calculate_road_haulage_quote(email_subject, email_body)
                 except Exception as e:
                     st.error(f"An error occurred: {str(e)}")
                     st.info("Please check your input and try again. If the problem persists, contact support.")
@@ -152,11 +125,6 @@ def display_quote_result(result):
     st.markdown('<div class="success-box">', unsafe_allow_html=True)
     st.success("✅ Quote Generated Successfully!")
     st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Display user options used for this quote
-    if "user_options" in st.session_state:
-        st.info(f"**Options used:** Quantity: {st.session_state.user_options['quantity']}, "
-                f"Airway Labels: {'Yes' if st.session_state.user_options['airway_labels'] else 'No'}")
     
     # Create tabs for different sections (only Quote Breakdown and Extracted Information)
     tab1, tab2 = st.tabs(["💰 Breakdown", "🔍 Extracted Data"])
