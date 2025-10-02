@@ -9,7 +9,7 @@ SURCHARGES_CSV = 'data/quotesheet3.csv'
 # AI Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 # Use a more widely available model
-AI_MODEL = "gpt-3.5-turbo"  # Changed from gpt-5-nano
+AI_MODEL = "gpt-5-nano"  
 
 # Service Mapping
 SERVICE_MAPPING = {
