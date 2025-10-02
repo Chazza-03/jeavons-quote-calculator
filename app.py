@@ -46,12 +46,107 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# Surcharges configuration
+SURCHARGES = {
+    "tail_lift": {
+        "name": "Tail-lift per consignment",
+        "price": 12.50,
+        "description": "Required for deliveries without loading dock"
+    },
+    "moffat_delivery": {
+        "name": "Moffat Delivery",
+        "price": 108.00,
+        "description": "Service available only for 8 pallets & above"
+    },
+    "am_pm_delivery": {
+        "name": "AM or PM deliveries Next Day",
+        "price": 20.00,
+        "description": "Specific time window delivery (AM or PM)"
+    },
+    "timed_delivery": {
+        "name": "Timed deliveries Next Day",
+        "price": 40.00,
+        "description": "Specific timed delivery"
+    },
+    "london_charge": {
+        "name": "London & Suburb Charge",
+        "price": 20.00,
+        "description": "These postcodes will attract the London & Suburb Charge"
+    },
+    "demurrage": {
+        "name": "Demurrage after 1 hour",
+        "price": 75.00,
+        "description": "Per hour after first hour",
+        "per_hour": True
+    },
+    "cargo_labels": {
+        "name": "Cargo Identification Labels",
+        "price": 0.30,
+        "description": "Per label",
+        "quantity_based": True
+    },
+    "airway_bill": {
+        "name": "Airway Bill Printing",
+        "price": 3.50,
+        "description": "Documentation fee"
+    },
+    "adr_surcharge": {
+        "name": "ADR Surcharge",
+        "price": 35.00,
+        "description": "For dangerous goods"
+    }
+}
+
+def calculate_template_quote(base_price, selected_surcharges, cargo_label_quantity=0):
+    """Calculate quote based on template inputs"""
+    fuel_surcharge_rate = 0.08  # 8%
+    vat_rate = 0.20  # 20%
+    
+    # Calculate fuel surcharge
+    fuel_surcharge = base_price * fuel_surcharge_rate
+    
+    # Calculate other surcharges
+    other_surcharges = 0
+    surcharge_details = {}
+    
+    for surcharge_key, surcharge_data in selected_surcharges.items():
+        surcharge_config = SURCHARGES[surcharge_key]
+        
+        if surcharge_key == "cargo_labels" and surcharge_data["selected"]:
+            quantity = cargo_label_quantity
+            amount = quantity * surcharge_config["price"]
+            surcharge_details[surcharge_config["name"]] = f"£{amount:.2f} ({quantity} labels)"
+            other_surcharges += amount
+        elif surcharge_key == "demurrage" and surcharge_data["selected"]:
+            hours = surcharge_data.get("hours", 1)
+            amount = hours * surcharge_config["price"]
+            surcharge_details[surcharge_config["name"]] = f"£{amount:.2f} ({hours} hours)"
+            other_surcharges += amount
+        elif surcharge_data["selected"]:
+            amount = surcharge_config["price"]
+            surcharge_details[surcharge_config["name"]] = f"£{amount:.2f}"
+            other_surcharges += amount
+    
+    # Calculate totals
+    subtotal = base_price + fuel_surcharge + other_surcharges
+    vat_amount = subtotal * vat_rate
+    total = subtotal + vat_amount
+    
+    return {
+        "base_price": base_price,
+        "fuel_surcharge": fuel_surcharge,
+        "other_surcharges": other_surcharges,
+        "surcharge_details": surcharge_details,
+        "subtotal": subtotal,
+        "vat_amount": vat_amount,
+        "total": total
+    }
 
 def main():
     # Header
     st.markdown('<div class="main-header">🚚 Jeavons Eurotir Quote Calculator</div>', unsafe_allow_html=True)
     
-    # Check if API key is set
+    # Check if API key is set (only needed for quote request)
     if not os.getenv('OPENAI_API_KEY'):
         st.error("⚠️ OPENAI_API_KEY not found. Please set it in the environment variables.")
         st.info("""
@@ -60,6 +155,26 @@ def main():
         2. Navigate to your app settings
         3. Add OPENAI_API_KEY in the Secrets section
         """)
+    
+    # Quote type selection
+    quote_type = st.radio(
+        "Select Quote Type:",
+        ["Quote Request", "Quote Template"],
+        horizontal=True,
+        help="Choose between analyzing email requests or creating manual quotes"
+    )
+    
+    if quote_type == "Quote Request":
+        render_quote_request()
+    else:
+        render_quote_template()
+
+def render_quote_request():
+    """Render the quote request interface for Uniexpress"""
+    
+    # Check if API key is available
+    if not os.getenv('OPENAI_API_KEY'):
+        st.warning("⚠️ Quote Request functionality requires OPENAI_API_KEY to be set")
         return
     
     # Create two columns for email input and quote results
@@ -70,7 +185,7 @@ def main():
         
         email_subject = st.text_input(
             "Email Subject*",
-            value="Quote result",  # Default value added here
+            value="Quote Request",
             placeholder="e.g., Urgent quote request for 5 pallets to BHX",
             help="Enter the email subject line"
         )
@@ -92,6 +207,7 @@ def main():
             with st.spinner("🤖 AI is analyzing the email and calculating your quote..."):
                 try:
                     st.session_state.quote_result = calculate_road_haulage_quote(email_subject, email_body)
+                    st.session_state.quote_type = "request"
                 except Exception as e:
                     st.error(f"An error occurred: {str(e)}")
                     st.info("Please check your input and try again. If the problem persists, contact support.")
@@ -100,13 +216,100 @@ def main():
         st.subheader("💰 Quote Breakdown")
         
         # Display quote results if they exist in session state
-        if "quote_result" in st.session_state:
-            display_quote_result(st.session_state.quote_result)
+        if "quote_result" in st.session_state and st.session_state.get("quote_type") == "request":
+            display_quote_request_result(st.session_state.quote_result)
         else:
             st.info("👈 Enter email content and click 'Generate Quote' to see the quote breakdown here.")
 
-def display_quote_result(result):
-    """Display the quote results in the right column"""
+def render_quote_template():
+    """Render the quote template interface"""
+    
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.subheader("📋 Quote Template")
+        
+        # Base price input
+        base_price = st.number_input(
+            "Base Price (£)*",
+            min_value=0.0,
+            step=10.0,
+            value=100.0,
+            help="Enter the base price for the service"
+        )
+        
+        st.markdown("---")
+        st.subheader("➕ Additional Surcharges")
+        
+        # Surcharges checklist
+        selected_surcharges = {}
+        
+        for key, config in SURCHARGES.items():
+            col_a, col_b = st.columns([3, 2])
+            
+            with col_a:
+                selected = st.checkbox(
+                    config["name"],
+                    help=config["description"]
+                )
+            
+            with col_b:
+                if config.get("quantity_based"):
+                    quantity = st.number_input(
+                        "Quantity",
+                        min_value=0,
+                        value=1,
+                        key=f"{key}_qty",
+                        disabled=not selected
+                    )
+                    selected_surcharges[key] = {
+                        "selected": selected,
+                        "quantity": quantity
+                    }
+                elif config.get("per_hour"):
+                    hours = st.number_input(
+                        "Hours",
+                        min_value=1,
+                        value=1,
+                        key=f"{key}_hours",
+                        disabled=not selected
+                    )
+                    selected_surcharges[key] = {
+                        "selected": selected,
+                        "hours": hours
+                    }
+                else:
+                    st.write(f"£{config['price']:.2f}")
+                    selected_surcharges[key] = {
+                        "selected": selected
+                    }
+        
+        # Generate template quote button
+        if st.button("📄 Create Quote", type="primary", use_container_width=True):
+            if base_price <= 0:
+                st.error("Please enter a valid base price")
+                return
+            
+            # Calculate the quote
+            cargo_label_quantity = selected_surcharges.get("cargo_labels", {}).get("quantity", 0)
+            quote_result = calculate_template_quote(base_price, selected_surcharges, cargo_label_quantity)
+            st.session_state.template_quote = quote_result
+            st.session_state.quote_type = "template"
+            
+            # Show success message
+            st.success("✅ Quote created successfully!")
+    
+    with col2:
+        st.subheader("💰 Quote Breakdown")
+        
+        # Display template quote results
+        if "template_quote" in st.session_state and st.session_state.get("quote_type") == "template":
+            display_template_quote_result(st.session_state.template_quote)
+        else:
+            st.info("👈 Configure your quote and click 'Create Quote' to see the breakdown here.")
+
+def display_quote_request_result(result):
+    """Display the quote request results"""
     
     if "error" in result:
         st.markdown('<div class="error-box">', unsafe_allow_html=True)
@@ -126,7 +329,7 @@ def display_quote_result(result):
     st.success("✅ Quote Generated Successfully!")
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Create tabs for different sections (only Quote Breakdown and Extracted Information)
+    # Create tabs for different sections
     tab1, tab2 = st.tabs(["💰 Breakdown", "🔍 Extracted Data"])
     
     with tab1:
@@ -134,11 +337,10 @@ def display_quote_result(result):
         breakdown = quote_data["quote_breakdown"]
         total_amount = breakdown["Total"]
         
-        # Display each line item - FIXED: Handle string values properly
+        # Display each line item
         for item, amount in breakdown.items():
             if item == "Total":
                 st.markdown("---")
-                # Handle both string and numeric totals
                 if isinstance(amount, (int, float)):
                     st.markdown(f"### **Total: £{amount:.2f}**")
                 else:
@@ -148,7 +350,6 @@ def display_quote_result(result):
                 with col1:
                     st.write(item)
                 with col2:
-                    # Handle both string and numeric amounts
                     if isinstance(amount, (int, float)):
                         st.write(f"£{amount:.2f}")
                     else:
@@ -157,8 +358,72 @@ def display_quote_result(result):
     with tab2:
         # Display what the AI extracted
         st.json(extracted_info)
-        
         st.info("This shows the raw data extracted by AI from the email content.")
+
+def display_template_quote_result(quote):
+    """Display the template quote results"""
+    
+    st.markdown('<div class="success-box">', unsafe_allow_html=True)
+    st.success("✅ Quote Created Successfully!")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Create a clean breakdown
+    st.markdown("### 📊 Cost Breakdown")
+    
+    # Base price and fuel surcharge
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("Base Price", f"£{quote['base_price']:.2f}")
+    
+    with col2:
+        st.metric("Fuel Surcharge (8%)", f"£{quote['fuel_surcharge']:.2f}")
+    
+    # Other surcharges
+    if quote['surcharge_details']:
+        st.markdown("#### Additional Surcharges")
+        for surcharge_name, amount in quote['surcharge_details'].items():
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.write(surcharge_name)
+            with col2:
+                st.write(amount)
+    
+    # Totals
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("Subtotal (ex. VAT)", f"£{quote['subtotal']:.2f}")
+    
+    with col2:
+        st.metric("VAT (20%)", f"£{quote['vat_amount']:.2f}")
+    
+    st.markdown("---")
+    st.markdown(f"## **Total (inc. VAT): £{quote['total']:.2f}**")
+    
+    # Optional: Add download button for the quote
+    st.download_button(
+        label="📥 Download Quote Summary",
+        data=f"""
+Jeavons Eurotir Quote Summary
+
+Base Price: £{quote['base_price']:.2f}
+Fuel Surcharge (8%): £{quote['fuel_surcharge']:.2f}
+
+Additional Surcharges:
+{chr(10).join([f"- {name}: {amount}" for name, amount in quote['surcharge_details'].items()]) if quote['surcharge_details'] else "None"}
+
+Subtotal (ex. VAT): £{quote['subtotal']:.2f}
+VAT (20%): £{quote['vat_amount']:.2f}
+Total (inc. VAT): £{quote['total']:.2f}
+
+Generated by Jeavons Eurotir Quote Calculator
+        """,
+        file_name="jeavons_quote.txt",
+        mime="text/plain"
+    )
 
 if __name__ == "__main__":
     main()
