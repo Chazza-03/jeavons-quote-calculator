@@ -389,21 +389,21 @@ def display_template_quote_result(quote):
     
     # Optional: Add download button for the quote
    if st.button("📋 Copy Quote Summary"):
-    quote_text = f"""
-Collection & delivery: £{quote['base_price']:.2f}
-Fuel Surcharge (8%): £{quote['fuel_surcharge']:.2f}
-
-Additional Surcharges:
-{chr(10).join([f"- {name}: {amount}" for name, amount in quote['surcharge_details'].items()]) if quote['surcharge_details'] else "None"}
-
-Subtotal (ex. VAT): £{quote['subtotal']:.2f}
-"""
+        quote_text = f"""
+    Collection & delivery: £{quote['base_price']:.2f}
+    Fuel Surcharge (8%): £{quote['fuel_surcharge']:.2f}
     
-    try:
-        pyperclip.copy(quote_text)
-        st.success("Quote copied to clipboard! ✅")
-    except Exception as e:
-        st.error(f"Failed to copy to clipboard: {e}")
+    Additional Surcharges:
+    {chr(10).join([f"- {name}: {amount}" for name, amount in quote['surcharge_details'].items()]) if quote['surcharge_details'] else "None"}
+    
+    Subtotal (ex. VAT): £{quote['subtotal']:.2f}
+    """
+        
+        try:
+            pyperclip.copy(quote_text)
+            st.success("Quote copied to clipboard! ✅")
+        except Exception as e:
+            st.error(f"Failed to copy to clipboard: {e}")
 
 if __name__ == "__main__":
     main()
