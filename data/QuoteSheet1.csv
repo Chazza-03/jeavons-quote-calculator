@@ -1,4 +1,4 @@
-Weight_KG,Zone,Service,New_Price
+Weight_KG,Zone,Service,Price_GBP
 250,1,E,49
 250,1,ND,50
 250,2,E,55.99
@@ -391,3 +391,4 @@ Weight_KG,Zone,Service,New_Price
 28500,6,ND,2109.91
 28500,7,E,2099.35
 28500,7,ND,2233.35
+
