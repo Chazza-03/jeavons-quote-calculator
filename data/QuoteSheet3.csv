@@ -1,0 +1,13 @@
+Surcharge_Type,Amount_GBP,Condition
+Tail-lift per consignment,12.50
+Moffat Delivery,108,Service available only for 8 pallets & above
+AM or PM deliveries Next Day,20,These services are not available to all postcodes
+Timed deliveries Next Day,40,These services are not available to all postcodes
+Saturday delivery,P.O.A,
+London & Suburb Charge,20,These postcodes will attract the London & Suburb Charge which has been communicated separately.
+Booking Fee,FOC,Free
+Return of Goods,50% of Next Day pallet rate,Returns are on the proviso that they are collected when delivering
+Demurrage after 1 hour,75.00 per hour,
+Cargo Identification Labels, 0.30
+Airway Bill Printing, 3.50
+ADR Surcharge, 35.00
