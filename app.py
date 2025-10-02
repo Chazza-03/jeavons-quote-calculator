@@ -46,38 +46,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def debug_pricing_data():
-    from quote_calculator import RoadHaulageQuoteCalculator
-    calculator = RoadHaulageQuoteCalculator()
-    
-    st.subheader("🔧 Debug Information")
-    
-    # Check if pricing data loaded
-    st.write(f"Pricing records loaded: {len(calculator.pricing_data)}")
-    
-    if calculator.pricing_data:
-        st.write("First 3 pricing records:")
-        st.json(calculator.pricing_data[:3])
-        
-        # Check available weight tiers
-        weight_tiers = []
-        for row in calculator.pricing_data:
-            try:
-                weight_tiers.append(float(row['Weight_KG']))
-            except (ValueError, KeyError):
-                continue
-        st.write(f"Available weight tiers: {sorted(weight_tiers)}")
-    
-    # Check zones data
-    st.write(f"Zones records loaded: {len(calculator.zones_data)}")
-    if calculator.zones_data:
-        st.write("First 3 zones records:")
-        st.json(calculator.zones_data[:3])
 
 def main():
     # Header
     st.markdown('<div class="main-header">🚚 Jeavons Eurotir Quote Calculator</div>', unsafe_allow_html=True)
-    debug_pricing_data()
+    
     # Check if API key is set
     if not os.getenv('OPENAI_API_KEY'):
         st.error("⚠️ OPENAI_API_KEY not found. Please set it in the environment variables.")
