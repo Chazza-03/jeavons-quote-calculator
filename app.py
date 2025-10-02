@@ -386,9 +386,9 @@ def display_template_quote_result(quote):
     st.markdown("---")
     st.markdown(f"## **Total (inc. VAT): £{quote['total']:.2f}**")
     
-    # Optional: Add download button for the quote
-    st.download_button(
-        label="📥 Download Quote Summary",
+    # Optional: Add copy button for the quote
+    st.copy_button(
+        label="📥 Copy Quote Summary",
         data=f"""
 
 Collection & delivery: £{quote['base_price']:.2f}
