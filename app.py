@@ -70,7 +70,7 @@ def main():
         
         email_subject = st.text_input(
             "Email Subject*",
-            value="Quote result",  # Default value added here
+            value="Quote Request",  # Default value added here
             placeholder="e.g., Urgent quote request for 5 pallets to BHX",
             help="Enter the email subject line"
         )
