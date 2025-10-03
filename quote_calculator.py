@@ -154,33 +154,23 @@ class RoadHaulageQuoteCalculator:
         if not address:
             return None
         
-        # First try standard UK postcode pattern
-        pattern = r'[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}'
-        matches = re.findall(pattern, address, re.IGNORECASE)
-        if matches:
-            return matches[0]
+        # Enhanced UK postcode patterns
+        patterns = [
+            # Standard format: AB1 2CD or A1B 2CD
+            r'[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}',
+            # Outward code only (like NP19) - accept these as valid
+            r'\b[A-Z]{1,2}\d{1,2}[A-Z]?\b',
+            # Handle cases with spaces: NP 19
+            r'\b[A-Z]{1,2}\s*\d{1,2}[A-Z]?\b'
+        ]
         
-        # Enhanced: Handle partial postcodes like "CO7" by looking them up in zones
-        address_upper = address.upper().strip()
-        
-        # Check if it's just a postcode prefix (like "CO7")
-        if re.match(r'^[A-Z]{1,2}\d{1,2}[A-Z]?$', address_upper):
-            # This is likely a postcode prefix, find the most common postcode for this prefix
-            for row in self.zones_data:
-                zone_prefix = row['Postcode_Prefix'].strip().upper()
-                # Handle simple prefix matches
-                if address_upper.startswith(zone_prefix.split()[0]) or zone_prefix.startswith(address_upper):
-                    # Return a sample postcode for this prefix (you might want to customize this)
-                    sample_postcodes = {
-                        'CO7': 'CO7 7AB', 'CO': 'CO1 1AB',
-                        'B': 'B1 1AB', 'BHX': 'B26 3QJ',
-                        'BH': 'BH1 1AB', 'AB': 'AB1 1AB',
-                        # Add more mappings as needed
-                    }
-                    for prefix, sample in sample_postcodes.items():
-                        if address_upper.startswith(prefix):
-                            return sample
-                    return f"{address_upper} 1AB"  # Fallback
+        for pattern in patterns:
+            matches = re.findall(pattern, address.upper())
+            if matches:
+                # Return the first valid match, cleaning up any spaces
+                postcode = matches[0].replace(' ', '')
+                print(f"DEBUG: Extracted postcode: {postcode} from address: {address}")
+                return postcode
         
         # Enhanced airport code detection (for pickup addresses that might be airports)
         airport_mappings = {
@@ -190,13 +180,15 @@ class RoadHaulageQuoteCalculator:
             'MAN': 'M90 1QX',  # Manchester Airport
             'STN': 'CM24 1RW', # Stansted Airport
             'EDI': 'EH12 9DN', # Edinburgh Airport
-            'GLA': 'PA3 2SW',  # Glasgow Airport,
-            'CO7': 'CO7 7AB',  # Colchester area
+            'GLA': 'PA3 2SW',  # Glasgow Airport
         }
         
-        # Check for airport codes or postcode prefixes in the address
+        address_upper = address.upper()
+        
+        # Check for airport codes in the address
         for code, postcode in airport_mappings.items():
             if code in address_upper:
+                print(f"DEBUG: Found airport code {code}, using postcode: {postcode}")
                 return postcode
         
         # Try common location names
@@ -208,15 +200,17 @@ class RoadHaulageQuoteCalculator:
             'STANSTED AIRPORT': 'CM24 1RW',
             'EDINBURGH AIRPORT': 'EH12 9DN',
             'GLASGOW AIRPORT': 'PA3 2SW',
-            'COLCHESTER': 'CO1 1AB',  # For CO7 area
+            'NEWPORT': 'NP19',  # Specific fix for Newport
         }
         
         for location_name, postcode in location_mappings.items():
             if location_name in address_upper:
+                print(f"DEBUG: Found location {location_name}, using postcode: {postcode}")
                 return postcode
         
+        print(f"DEBUG: No postcode found in address: {address}")
         return None
-    
+        
     def _find_zone_by_postcode(self, postcode):
         """Find zone for a given postcode"""
         if not postcode:
@@ -224,12 +218,20 @@ class RoadHaulageQuoteCalculator:
         
         # Clean the postcode and extract prefix
         postcode_clean = postcode.upper().replace(' ', '')
-        prefix_match = re.match(r'^[A-Z]{1,2}', postcode_clean)
-        if not prefix_match:
-            return None
         
-        prefix = prefix_match.group(0)
-        #print(f"DEBUG: Looking up zone for postcode: {postcode}, prefix: {prefix}")
+        # Extract the outward code (first part of postcode)
+        if len(postcode_clean) >= 2:
+            # For full postcodes like "NP190BD", extract "NP19"
+            if len(postcode_clean) > 3 and postcode_clean[2].isdigit():
+                prefix = postcode_clean[:4] if len(postcode_clean) >= 4 else postcode_clean[:3]
+            else:
+                # For shorter codes or area codes
+                prefix_match = re.match(r'^[A-Z]{1,2}\d?', postcode_clean)
+                prefix = prefix_match.group(0) if prefix_match else postcode_clean
+        else:
+            prefix = postcode_clean
+        
+        print(f"DEBUG: Looking up zone for postcode: {postcode}, clean: {postcode_clean}, prefix: {prefix}")
         
         # First, try exact prefix matches
         for row in self.zones_data:
@@ -252,12 +254,12 @@ class RoadHaulageQuoteCalculator:
                                     if '-' in range_part:
                                         range_start, range_end = map(int, range_part.split('-'))
                                         if range_start <= prefix_num <= range_end:
-                                            #print(f"DEBUG: Found zone {row['Zone']} for {postcode} (range match)")
+                                            print(f"DEBUG: Found zone {row['Zone']} for {postcode} (range match)")
                                             return row['Zone'], row['Service_Level']
                                     else:
                                         # Single number
                                         if prefix_num == int(range_part):
-                                            #print(f"DEBUG: Found zone {row['Zone']} for {postcode} (exact number match)")
+                                            print(f"DEBUG: Found zone {row['Zone']} for {postcode} (exact number match)")
                                             return row['Zone'], row['Service_Level']
                             except:
                                 continue
@@ -268,24 +270,29 @@ class RoadHaulageQuoteCalculator:
                                 if prefix_num_match:
                                     prefix_num = int(prefix_num_match.group())
                                     if prefix_num >= min_num:
-                                        #print(f"DEBUG: Found zone {row['Zone']} for {postcode} (+ range match)")
+                                        print(f"DEBUG: Found zone {row['Zone']} for {postcode} (+ range match)")
                                         return row['Zone'], row['Service_Level']
                             except:
                                 continue
             
-            # Handle simple prefix matches (like "BN", "B", "AB", etc.)
+            # Handle simple prefix matches (like "NP", "B", "AB", etc.)
             elif prefix == zone_prefix:
-                #print(f"DEBUG: Found zone {row['Zone']} for {postcode} (exact prefix match)")
+                print(f"DEBUG: Found zone {row['Zone']} for {postcode} (exact prefix match)")
+                return row['Zone'], row['Service_Level']
+            
+            # Handle cases where our prefix starts with the zone prefix
+            elif prefix.startswith(zone_prefix):
+                print(f"DEBUG: Found zone {row['Zone']} for {postcode} (prefix starts with match)")
                 return row['Zone'], row['Service_Level']
             
             # Handle cases like "GU (REST)" - match the base prefix
             elif ' ' in zone_prefix and '(' in zone_prefix:
                 base_prefix = zone_prefix.split()[0]
-                if prefix == base_prefix:
-                    #print(f"DEBUG: Found zone {row['Zone']} for {postcode} (rest match)")
+                if prefix.startswith(base_prefix):
+                    print(f"DEBUG: Found zone {row['Zone']} for {postcode} (rest match)")
                     return row['Zone'], row['Service_Level']
         
-        #print(f"DEBUG: No zone found for postcode: {postcode}")
+        print(f"DEBUG: No zone found for postcode: {postcode}")
         return None
     
     def _parse_weight(self, weight_str):
