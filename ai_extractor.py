@@ -96,10 +96,9 @@ class AIQuoteExtractor:
         if data.get('total_weight'):
             data['total_weight'] = self._standardize_weight(data['total_weight'])
         
-        # Clean volume field - convert to float if it's a string with numbers
+        # Clean volume field
         if data.get('volume_m3'):
             try:
-                # Extract the numeric part from volume string
                 volume_str = str(data['volume_m3'])
                 volume_match = re.search(r'(\d+\.?\d*)', volume_str)
                 if volume_match:
@@ -113,16 +112,58 @@ class AIQuoteExtractor:
         
         # Enhance dimensions handling for multiple items
         if data.get('dimensions') and data.get('quantity', 1) > 1:
-            # If we have one dimension but multiple items, duplicate the dimension
             if len(data['dimensions']) == 1 and data['quantity'] > 1:
                 single_dimension = data['dimensions'][0]
                 data['dimensions'] = [single_dimension] * data['quantity']
                 print(f"DEBUG: Duplicated dimension '{single_dimension}' for {data['quantity']} items")
         
-        # Enhance address extraction for airport codes
+        # Enhance address extraction and validate postcodes
         data['to_address'] = self._enhance_address_extraction(data.get('to_address', ''), data.get('special_requirements', ''))
+        data['from_address'] = self._enhance_address_extraction(data.get('from_address', ''), data.get('special_requirements', ''))
+        
+        # Debug postcode extraction
+        from_postcode = self._extract_postcode(data.get('from_address', ''))
+        to_postcode = self._extract_postcode(data.get('to_address', ''))
+        
+        if from_postcode:
+            print(f"DEBUG: From address postcode: {from_postcode}")
+        if to_postcode:
+            print(f"DEBUG: To address postcode: {to_postcode}")
         
         return data
+
+    def _validate_uk_postcode(self, postcode):
+        """
+        Validate UK postcode format
+        """
+        if not postcode:
+            return False
+        
+        # Basic UK postcode pattern
+        uk_postcode_pattern = r'^[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}$'
+        return re.match(uk_postcode_pattern, postcode.strip().upper()) is not None
+
+    def _extract_postcode(self, address):
+        """
+        Extract postcode from address string
+        """
+        if not address:
+            return None
+        
+        # UK postcode regex pattern
+        postcode_patterns = [
+            r'[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}',  # Standard format
+            r'[A-Z]{1,2}[0-9]{1,2} ?[0-9]?[A-Z]{2}',      # Variant format
+        ]
+        
+        for pattern in postcode_patterns:
+            matches = re.findall(pattern, address.upper())
+            if matches:
+                for match in matches:
+                    if self._validate_uk_postcode(match):
+                        return match
+        
+        return None
     
     def _extract_number(self, text):
         """Extract first number from text"""
@@ -149,8 +190,12 @@ class AIQuoteExtractor:
         return f"{weight} kg"
     
     def _enhance_address_extraction(self, address, special_requirements):
-        """Enhance address extraction by looking for airport codes in the text"""
+        """Enhance address extraction by looking for airport codes and validating postcodes"""
         if address and address.strip():
+            # Extract and validate postcode from the address
+            postcode = self._extract_postcode(address)
+            if postcode:
+                print(f"DEBUG: Valid postcode found: {postcode}")
             return address
         
         # Look for airport codes in special requirements or infer from context
@@ -176,7 +221,14 @@ class AIQuoteExtractor:
         """Fallback method if AI extraction fails"""
         print("Using fallback extraction method")
         
-        # Enhanced fallback with stackability detection and volume extraction
+        # Extract from address postcode if available
+        from_address = ""
+        from_postcode_match = re.search(r'(\b[A-Z]{1,2}[0-9][A-Z0-9]? ?[0-9][A-Z]{2}\b)', body.upper())
+        if from_postcode_match:
+            from_postcode = from_postcode_match.group(1)
+            from_address = f"Newport, {from_postcode}"  # Or extract full address context
+        
+        # Rest of the fallback method remains the same...
         to_address = ""
         
         # Look for airport codes in the email body
@@ -203,7 +255,7 @@ class AIQuoteExtractor:
         weight_match = re.search(r'(\d+)\s*kg', body.lower())
         weight = f"{weight_match.group(1)} kg" if weight_match else "0 kg"
         
-        # Extract volume (m³) - improved pattern matching
+        # Extract volume
         volume_m3 = None
         volume_patterns = [
             r'(\d+\.?\d*)\s*m³',
@@ -228,8 +280,8 @@ class AIQuoteExtractor:
             "quantity": quantity,
             "total_weight": weight,
             "dimensions": [],
-            "volume_m3": volume_m3,  # This should now be a float or None
-            "from_address": "",
+            "volume_m3": volume_m3,
+            "from_address": from_address,  # Now includes postcode if found
             "to_address": to_address,
             "delivery_date": "",
             "service_type": "ND",
