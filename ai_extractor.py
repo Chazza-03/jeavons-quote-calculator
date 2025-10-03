@@ -51,10 +51,10 @@ class AIQuoteExtractor:
         {{
             "freight_type": "pallets/crates/boxes/etc (infer from context)",
             "quantity": number of items (extract number),
-            "total_weight": "weight with units (kg/tonnes/lbs)",
+            "total_weight": "weight with units (kg/tonnes/lbs), may be GW",
             "dimensions": ["dimension strings if mentioned"],
             "volume_m3": "volume in cubic meters if mentioned (e.g., 13.550 M3)",
-            "from_address": "pickup location address",
+            "from_address": "pickup location address, collection address",
             "to_address": "delivery destination address (include airport codes like BHX, LHR, etc as part of address)", 
             "delivery_date": "requested delivery date",
             "service_type": "ND (Next Day) or E (Economy) - Default to ND if Economy not determined",
