@@ -54,7 +54,7 @@ class AIQuoteExtractor:
             "total_weight": "weight with units (kg/tonnes/lbs), may be GW",
             "dimensions": ["dimension strings if mentioned"],
             "volume_m3": "volume in cubic meters if mentioned (e.g., 13.550 M3, or cbm)",
-            "from_address": "pickup location address or collection address: town, Postcode",
+            "from_address": "pickup location address or collection: town, Postcode",
             "to_address": "delivery destination address (include airport codes like BHX, LHR, etc as part of address)", 
             "delivery_date": "requested delivery date",
             "service_type": "ND (Next Day) or E (Economy) - Default to ND if Economy not determined",
